@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 	      nmea_getfield(s, field); // korekcja
 	      char ch = field[0];
 	      nmea_getfield(s, field); // liczba satelitow
-	      printf("#%2s  ", field);
+	      printf("%2s  ", field);
 	      if(ch != '0')
 		{
 		  nmea_getfield(s, field); // DOP
