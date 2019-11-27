@@ -5,11 +5,6 @@
 #include <bluetooth/rfcomm.h>
 
 
-const int buf_size = 1024;
-char buf[buf_size];
-int buf_length = 0;
-int buf_position = 0;
-
 int create_socket(char *dest, int *s)
 {
   struct sockaddr_rc addr = { 0 };
@@ -20,6 +15,7 @@ int create_socket(char *dest, int *s)
   return connect(*s, (struct sockaddr *)&addr, sizeof(addr));
 }
 
+const int buf_size = 1024;                                                                                                                                   char buf[buf_size];                                                                                                                                          int buf_length = 0;                                                                                                                                          int buf_position = 0;
 
 char nmea_getchar (int s)
 {
@@ -37,7 +33,12 @@ char nmea_getchar (int s)
     }
 }
 
-int nmea_getline(int s, char *line)
+const int line_size = 83;
+char line[line_size];
+int line_length = 0;
+int line_position = 0;
+
+int nmea_getline(int s)
 {
   do
     {}
@@ -46,11 +47,25 @@ int nmea_getline(int s, char *line)
   char ch;
   while((line[n++] = nmea_getchar(s)) != '*');
   line[--n] = '\0'; // nadpisz gwiazdke zerem konczacym napis
+  line_length = n ;
+  line_position = 0;
   return n;
+}
+
+void nmea_getfield(int s, char *field)
+{
+  while(line_position >= line_length)
+    nmea_getline(s);
+  while(line[line_position] != '\0' && line[line_position] != ',')
+    *(field++) = line[line_position++];
+  *field = '\0';
+  if(line_position < line_length && line[line_position] == ',')
+    line_position++;
 }
 
 int main(int argc, char **argv)
 {
+  char GPGGA[6] = "GPGGA";
   char dest[18] = "00:1C:88:10:58:F4";
   int s;
   
@@ -58,21 +73,33 @@ int main(int argc, char **argv)
     perror("connection error");
   else
     {
-      char line[83];
+      char field[20];
       for(;;)
 	{
-	  nmea_getline(s, line);
-	  if(line[0] == 'G' && line[1] == 'P' &&
-	     line[2] == 'G' && line[3] == 'G' && line[4] == 'A')
+	  nmea_getfield(s, field);
+	  if(strcmp(field, GPGGA) == 0)
 	    {
-	      printf("[%c%c:%c%c:%c%c UTC]  ", line[6], line[7], line[8],
-		     line[9], line[10], line[11]);
-	      printf("%c%c\u00B0%c%c.%c%c%c%c %c  ", line[17], line[18],
-		     line[19], line[20], line[22], line[23], line[24],
-		     line[25], line[27]);
-	      printf("%c%c%c\u00B0%c%c.%c%c%c%c %c  ", line[29], line[30],
-		     line[31], line[32], line[33], line[35], line[36],
-		     line[37], line[38], line[40]);
+	      nmea_getfield(s, field); // UTC
+	      field[6] = '\0';
+	      printf("[%s UTC]  ", field);
+	      nmea_getfield(s, field); // LAT
+	      printf("%c%c\u00B0%s ", field[0], field[1],  field+2);
+	      nmea_getfield(s, field); // N/S
+	      printf("%s  ", field);
+	      nmea_getfield(s, field); // LON
+	      printf("%c%c%c\u00B0%s ", field[0], field[1], field[2],
+		     field+3);
+	      nmea_getfield(s, field); // E/W
+	      printf("%s  ", field);
+	      nmea_getfield(s, field); // korekcja
+	      char ch = field[0];
+	      nmea_getfield(s, field); // liczba satelitow
+	      printf("#%2s  ", field);
+	      if(ch != '0')
+		{
+		  nmea_getfield(s, field); // DOP
+		  printf("%s", field);
+		}
 	      printf("\n");
 	    }
 	}
