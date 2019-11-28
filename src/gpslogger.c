@@ -15,7 +15,10 @@ int create_socket(char *dest, int *s)
   return connect(*s, (struct sockaddr *)&addr, sizeof(addr));
 }
 
-const int buf_size = 1024;                                                                                                                                   char buf[buf_size];                                                                                                                                          int buf_length = 0;                                                                                                                                          int buf_position = 0;
+const int buf_size = 1024;
+char buf[buf_size];
+int buf_length = 0;
+int buf_position = 0;
 
 char nmea_getchar (int s)
 {
@@ -65,6 +68,7 @@ void nmea_getfield(int s, char *field)
 
 int main(int argc, char **argv)
 {
+  const double Treshold = 2.0;
   char GPGGA[6] = "GPGGA";
   char dest[18] = "00:1C:88:10:58:F4";
   int s;
@@ -98,7 +102,14 @@ int main(int argc, char **argv)
 	      if(ch != '0')
 		{
 		  nmea_getfield(s, field); // DOP
-		  printf("%s", field);
+		  printf("%s  ", field);
+		  double DOP;
+		  sscanf(field, "%lf", &DOP);
+		  if(DOP < Treshold)
+		    {
+		      nmea_getfield(s, field);
+		      printf("%s M  ", field);
+		    }
 		}
 	      printf("\n");
 	    }
